@@ -13,6 +13,7 @@ on:
       - "scripts/filter_ics.py"
       - "requirements.txt"
       - ".github/workflows/update.yml"
+      - "index.html"
 
 # Only one Pages deployment at a time.
 concurrency:
@@ -42,6 +43,9 @@ jobs:
 
       - name: Build filtered ICS
         run: python scripts/filter_ics.py
+
+      - name: Copy index.html
+        run: cp index.html _site/index.html
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

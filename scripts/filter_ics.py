@@ -42,6 +42,38 @@ LOOKBACK_DAYS = int(os.environ.get("LOOKBACK_DAYS", "7"))
 OUTPUT_DIR = Path(os.environ.get("OUTPUT_DIR", "_site"))
 OUTPUT_FILENAME = os.environ.get("OUTPUT_FILENAME", "bbc-rides.ics")
 
+# Ride type names in bitmask order (bit 0 = index 0, etc.)
+RIDE_TYPES = ["metric", "easy", "early", "iride", "growlers", "other"]
+
+
+def categorize(summary: str) -> str:
+    s = str(summary).lower()
+    if "metric monday" in s:
+        return "metric"
+    if "nice" in s and "easy" in s:
+        return "easy"
+    if s.startswith("early bird"):
+        return "early"
+    if "iride" in s or "i ride" in s:
+        return "iride"
+    if "growler" in s:
+        return "growlers"
+    return "other"
+
+
+def build_subset(base: Calendar, allowed: set[str]) -> Calendar:
+    """Return a copy of base containing only events whose type is in allowed."""
+    out = Calendar()
+    for key, value in base.property_items(recursive=False):
+        if key not in ("BEGIN", "END"):
+            out.add(key, value)
+    for vtz in base.walk("VTIMEZONE"):
+        out.add_component(vtz)
+    for ev in base.walk("VEVENT"):
+        if categorize(str(ev.get("SUMMARY", ""))) in allowed:
+            out.add_component(ev)
+    return out
+
 
 def _as_aware_utc(value) -> datetime:
     """Normalize a DTSTART/RECURRENCE-ID/UNTIL value to a tz-aware UTC datetime."""
@@ -160,24 +192,20 @@ def main() -> int:
     print(f"[filter] VEVENTs: {before} -> {after}", file=sys.stderr)
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+    # Full feed (all types) — kept for backwards compatibility.
     out_path = OUTPUT_DIR / OUTPUT_FILENAME
     out_path.write_bytes(out.to_ical())
     print(f"[write] {out_path} ({out_path.stat().st_size:,} bytes)", file=sys.stderr)
 
-    # Drop a simple index.html so the Pages root isn't a 404.
-    index_html = OUTPUT_DIR / "index.html"
-    index_html.write_text(
-        "<!doctype html>\n"
-        "<html><head><meta charset=\"utf-8\"><title>BBC Rides (filtered)</title></head>\n"
-        "<body style=\"font-family:system-ui;max-width:40rem;margin:3rem auto;padding:0 1rem;line-height:1.5\">\n"
-        "<h1>BBC Rides (filtered feed)</h1>\n"
-        f"<p>Subscribe from a calendar client using this URL:</p>\n"
-        f"<p><code>{OUTPUT_FILENAME}</code> &mdash; "
-        f"<a href=\"{OUTPUT_FILENAME}\">download / view</a></p>\n"
-        "<p>This feed is regenerated from the upstream Google Calendar a few times "
-        "a day and contains only recent and upcoming events.</p>\n"
-        "</body></html>\n"
-    )
+    # One file per non-empty bitmask combination (63 files for 6 types).
+    for mask in range(1, 2 ** len(RIDE_TYPES)):
+        allowed = {RIDE_TYPES[i] for i in range(len(RIDE_TYPES)) if mask & (1 << i)}
+        subset = build_subset(out, allowed)
+        path = OUTPUT_DIR / f"bbc-rides-{mask}.ics"
+        path.write_bytes(subset.to_ical())
+    print(f"[write] {2 ** len(RIDE_TYPES) - 1} subset ICS files", file=sys.stderr)
+
     return 0
 
 

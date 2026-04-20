@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BBC Rides — Custom Calendar Feed</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      font-family: system-ui, sans-serif;
+      max-width: 36rem;
+      margin: 3rem auto;
+      padding: 0 1.25rem;
+      line-height: 1.6;
+      color: #222;
+    }
+    h1 { margin-bottom: 0.25rem; }
+    .subtitle { color: #666; margin-top: 0; margin-bottom: 2rem; }
+    fieldset {
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 1rem 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+    legend { font-weight: 600; padding: 0 0.4rem; }
+    label {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.3rem 0;
+      cursor: pointer;
+    }
+    input[type="checkbox"] { width: 1.1rem; height: 1.1rem; cursor: pointer; }
+    .result {
+      background: #f5f5f5;
+      border-radius: 6px;
+      padding: 1rem 1.25rem;
+    }
+    .result p { margin: 0.4rem 0; }
+    .result code {
+      display: block;
+      word-break: break-all;
+      background: #e8e8e8;
+      border-radius: 4px;
+      padding: 0.5rem 0.75rem;
+      font-size: 0.85rem;
+      margin: 0.5rem 0;
+    }
+    .actions { display: flex; gap: 0.75rem; margin-top: 0.75rem; flex-wrap: wrap; }
+    button, a.btn {
+      padding: 0.45rem 1rem;
+      border-radius: 5px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      text-decoration: none;
+      border: none;
+    }
+    a.btn-primary {
+      background: #0969da;
+      color: #fff;
+    }
+    button.btn-secondary {
+      background: #e8e8e8;
+      color: #222;
+    }
+    .none-selected { color: #c00; font-style: italic; }
+  </style>
+</head>
+<body>
+  <h1>BBC Rides</h1>
+  <p class="subtitle">Bloomington Bicycle Club — filtered calendar feed</p>
+
+  <fieldset>
+    <legend>Include ride types</legend>
+    <label><input type="checkbox" value="1"  checked> Metric Monday</label>
+    <label><input type="checkbox" value="2"  checked> Nice 'n' Easy</label>
+    <label><input type="checkbox" value="4"  checked> Early Birds</label>
+    <label><input type="checkbox" value="8"  checked> iRide</label>
+    <label><input type="checkbox" value="16" checked> Growlers</label>
+    <label><input type="checkbox" value="32" checked> Other</label>
+  </fieldset>
+
+  <div class="result" id="result"></div>
+
+  <script>
+    const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+    const result = document.getElementById('result');
+
+    function baseUrl() {
+      const href = window.location.href.split('?')[0];
+      return href.endsWith('/') ? href : href.substring(0, href.lastIndexOf('/') + 1);
+    }
+
+    function update() {
+      let mask = 0;
+      checkboxes.forEach(cb => { if (cb.checked) mask += parseInt(cb.value, 10); });
+
+      if (mask === 0) {
+        result.innerHTML = '<p class="none-selected">Select at least one ride type.</p>';
+        return;
+      }
+
+      const icsFile = `bbc-rides-${mask}.ics`;
+      const httpsUrl = baseUrl() + icsFile;
+      const webcalUrl = httpsUrl.replace(/^https?:\/\//, 'webcal://');
+
+      result.innerHTML = `
+        <p>Your custom feed URL:</p>
+        <code id="url-text">${webcalUrl}</code>
+        <div class="actions">
+          <a class="btn btn-primary" href="${webcalUrl}">Subscribe in Calendar</a>
+          <button class="btn-secondary" onclick="copyUrl()">Copy link</button>
+        </div>
+        <p style="margin-top:0.75rem;font-size:0.85rem;color:#555;">
+          Or paste into any calendar app that accepts ICS subscriptions:<br>
+          <a href="${httpsUrl}" style="font-size:0.8rem;word-break:break-all;">${httpsUrl}</a>
+        </p>`;
+    }
+
+    window.copyUrl = function () {
+      const url = document.getElementById('url-text').textContent;
+      navigator.clipboard.writeText(url).then(() => {
+        const btn = document.querySelector('button.btn-secondary');
+        btn.textContent = 'Copied!';
+        setTimeout(() => { btn.textContent = 'Copy link'; }, 1500);
+      });
+    };
+
+    checkboxes.forEach(cb => cb.addEventListener('change', update));
+    update();
+  </script>
+</body>
+</html>

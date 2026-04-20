@@ -25,12 +25,14 @@
     legend { font-weight: 600; padding: 0 0.4rem; }
     label {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       gap: 0.6rem;
-      padding: 0.3rem 0;
+      padding: 0.4rem 0;
       cursor: pointer;
     }
-    input[type="checkbox"] { width: 1.1rem; height: 1.1rem; cursor: pointer; }
+    input[type="checkbox"] { width: 1.1rem; height: 1.1rem; cursor: pointer; margin-top: 0.2rem; flex-shrink: 0; }
+    .type-name { font-weight: 500; }
+    .type-desc { display: block; font-size: 0.82rem; color: #555; line-height: 1.4; margin-top: 0.15rem; }
     .result {
       background: #f5f5f5;
       border-radius: 6px;
@@ -72,12 +74,29 @@
 
   <fieldset>
     <legend>Include ride types</legend>
-    <label><input type="checkbox" value="1"  checked> Metric Monday</label>
-    <label><input type="checkbox" value="2"  checked> Nice 'n' Easy</label>
-    <label><input type="checkbox" value="4"  checked> Early Birds</label>
-    <label><input type="checkbox" value="8"  checked> iRide</label>
-    <label><input type="checkbox" value="16" checked> Growlers</label>
-    <label><input type="checkbox" value="32" checked> Other</label>
+    <label><input type="checkbox" value="32" checked><span>
+      <span class="type-name">General rides</span>
+    </span></label>
+    <label><input type="checkbox" value="1"  checked><span>
+      <span class="type-name">Metric Monday</span>
+      <span class="type-desc">60–70 mile drive-and-ride starting from various Southern Indiana towns. Carpool from Bryan Park may be arranged. Aims for a lunch stop. Runs April–October.</span>
+    </span></label>
+    <label><input type="checkbox" value="2"  checked><span>
+      <span class="type-name">Nice 'n' Easy</span>
+      <span class="type-desc">Sunday rides for less experienced riders and those wanting a relaxed pace. 19–24 miles at a slower pace. Meet at Switchyard Park (spray pad area) for a 1:00 pm departure.</span>
+    </span></label>
+    <label><input type="checkbox" value="4"  checked><span>
+      <span class="type-name">Early Birds</span>
+      <span class="type-desc">Earlier-start, moderate-paced rides at 12–15 mph. No-drop but not a beginner's ride. Routes posted in advance. 20–30+ miles, increasing as the season progresses.</span>
+    </span></label>
+    <label><input type="checkbox" value="8"  checked><span>
+      <span class="type-name">iRide</span>
+      <span class="type-desc">No-drop ride with regroup points for riders wanting to push the pace without being race-oriented. 16–18 mph average. Often follows the OWLS route with extra miles and climbs added in the second half.</span>
+    </span></label>
+    <label><input type="checkbox" value="16" checked><span>
+      <span class="type-name">Growlers</span>
+      <span class="type-desc">Off-road adventure rides on gravel, singletrack, and doubletrack. Start at 6 PM through fall/winter, ~2 hours. Lights mandatory in fall/winter.</span>
+    </span></label>
   </fieldset>
 
   <div class="result" id="result"></div>

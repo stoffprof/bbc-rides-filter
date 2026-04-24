@@ -48,6 +48,11 @@
       font-size: 0.85rem;
       margin: 0.5rem 0;
     }
+    .feed-status {
+      margin-top: 0.75rem;
+      font-size: 0.85rem;
+      color: #555;
+    }
     .actions { display: flex; gap: 0.75rem; margin-top: 0.75rem; flex-wrap: wrap; }
     button, a.btn {
       padding: 0.45rem 1rem;
@@ -138,10 +143,40 @@
   <script>
     const checkboxes = document.querySelectorAll('input[type="checkbox"]');
     const result = document.getElementById('result');
+    let lastUpdatedText = null;
+    let lastUpdatedRequest = null;
 
     function baseUrl() {
       const href = window.location.href.split('?')[0];
       return href.endsWith('/') ? href : href.substring(0, href.lastIndexOf('/') + 1);
+    }
+
+    function setLastUpdated(text) {
+      const el = document.getElementById('last-updated');
+      if (el) el.textContent = text;
+    }
+
+    function loadLastUpdated() {
+      if (lastUpdatedText) {
+        setLastUpdated(lastUpdatedText);
+        return;
+      }
+
+      if (!lastUpdatedRequest) {
+        lastUpdatedRequest = fetch('last-updated.json', { cache: 'no-store' })
+          .then(response => {
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return response.json();
+          })
+          .then(data => {
+            lastUpdatedText = data.display || 'unavailable';
+            setLastUpdated(lastUpdatedText);
+          })
+          .catch(() => {
+            lastUpdatedText = 'unavailable';
+            setLastUpdated(lastUpdatedText);
+          });
+      }
     }
 
     function update() {
@@ -167,7 +202,9 @@
         <p style="margin-top:0.75rem;font-size:0.85rem;color:#555;">
           Or paste into any calendar app that accepts ICS subscriptions:<br>
           <a href="${httpsUrl}" style="font-size:0.8rem;word-break:break-all;">${httpsUrl}</a>
-        </p>`;
+        </p>
+        <p class="feed-status">Calendar data updated every three hours. Last updated: <span id="last-updated">loading...</span></p>`;
+      loadLastUpdated();
     }
 
     window.copyUrl = function () {

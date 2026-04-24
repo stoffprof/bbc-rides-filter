@@ -20,11 +20,13 @@ GitHub Pages via actions/deploy-pages.
 
 from __future__ import annotations
 
+import json
 import os
 import sys
 import urllib.request
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from icalendar import Calendar
 
@@ -41,6 +43,8 @@ LOOKBACK_DAYS = int(os.environ.get("LOOKBACK_DAYS", "7"))
 
 OUTPUT_DIR = Path(os.environ.get("OUTPUT_DIR", "_site"))
 OUTPUT_FILENAME = os.environ.get("OUTPUT_FILENAME", "bbc-rides.ics")
+LAST_UPDATED_FILENAME = os.environ.get("LAST_UPDATED_FILENAME", "last-updated.json")
+EASTERN_TZ = ZoneInfo("America/New_York")
 
 # Ride type names in bitmask order (bit 0 = index 0, etc.)
 RIDE_TYPES = ["metric", "easy", "early", "iride", "growlers", "other"]
@@ -108,6 +112,32 @@ def fetch_upstream(url: str) -> bytes:
         data = resp.read()
     print(f"[fetch] received {len(data):,} bytes", file=sys.stderr)
     return data
+
+
+def format_eastern_timestamp(value: datetime) -> str:
+    eastern = value.astimezone(EASTERN_TZ)
+    hour = eastern.hour % 12 or 12
+    am_pm = "AM" if eastern.hour < 12 else "PM"
+    return (
+        f"{eastern:%B} {eastern.day}, {eastern.year}, "
+        f"{hour}:{eastern.minute:02d} {am_pm} {eastern.tzname()}"
+    )
+
+
+def write_last_updated(output_dir: Path, updated_at: datetime) -> None:
+    eastern = updated_at.astimezone(EASTERN_TZ)
+    path = output_dir / LAST_UPDATED_FILENAME
+    payload = {
+        "display": format_eastern_timestamp(updated_at),
+        "timezone": "America/New_York",
+        "updated_at_eastern": eastern.isoformat(),
+        "updated_at_utc": updated_at.isoformat().replace("+00:00", "Z"),
+    }
+    path.write_text(
+        json.dumps(payload, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    print(f"[write] {path}", file=sys.stderr)
 
 
 def filter_calendar(src: Calendar, cutoff: datetime) -> Calendar:
@@ -192,6 +222,7 @@ def main() -> int:
     print(f"[filter] VEVENTs: {before} -> {after}", file=sys.stderr)
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    write_last_updated(OUTPUT_DIR, now)
 
     # Full feed (all types) — kept for backwards compatibility.
     out_path = OUTPUT_DIR / OUTPUT_FILENAME

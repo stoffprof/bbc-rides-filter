@@ -1,9 +1,9 @@
 name: Update filtered ICS
 
 on:
-  # Every 12 hours. Cron is best-effort; actual runs may be delayed.
+  # Every 3 hours starting at 5:20 AM UTC. Cron is best-effort; actual runs may be delayed.
   schedule:
-    - cron: "17 5,17 * * *"
+    - cron: "20 2,5,8,11,14,17,20,23 * * *"
   # Allow manual runs from the Actions tab.
   workflow_dispatch:
   # Rebuild on pushes that change the script or workflow itself.

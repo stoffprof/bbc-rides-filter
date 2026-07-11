@@ -20,9 +20,11 @@ GitHub Pages via actions/deploy-pages.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import sys
+import urllib.error
 import urllib.request
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -44,6 +46,16 @@ LOOKBACK_DAYS = int(os.environ.get("LOOKBACK_DAYS", "7"))
 OUTPUT_DIR = Path(os.environ.get("OUTPUT_DIR", "_site"))
 OUTPUT_FILENAME = os.environ.get("OUTPUT_FILENAME", "bbc-rides.ics")
 LAST_UPDATED_FILENAME = os.environ.get("LAST_UPDATED_FILENAME", "last-updated.json")
+
+# URL of the previously published last-updated.json (on the live Pages site),
+# used to detect whether the upstream calendar changed since the last run.
+# Empty means "no previous state available", so the feed is always processed.
+PREVIOUS_STATE_URL = os.environ.get("PREVIOUS_STATE_URL", "")
+
+# Set FORCE_REBUILD=true to process even when the upstream feed is unchanged
+# (used for pushes and manual workflow runs, so site changes still deploy).
+FORCE_REBUILD = os.environ.get("FORCE_REBUILD", "").lower() in ("1", "true", "yes")
+
 EASTERN_TZ = ZoneInfo("America/New_York")
 
 # Ride type names in bitmask order (bit 0 = index 0, etc.)
@@ -114,6 +126,49 @@ def fetch_upstream(url: str) -> bytes:
     return data
 
 
+def content_hash(cal: Calendar) -> str:
+    """Hash of the calendar's event content, ignoring volatile noise.
+
+    Google regenerates DTSTAMP on every fetch and returns events in a
+    different order each time, so hashing the raw bytes never matches.
+    Hash each event without its DTSTAMP, sorted, instead.
+    """
+    blobs = []
+    for ev in cal.walk("VEVENT"):
+        dtstamp = ev.pop("DTSTAMP", None)
+        blobs.append(ev.to_ical())
+        if dtstamp is not None:
+            ev["DTSTAMP"] = dtstamp
+    hasher = hashlib.sha256()
+    for blob in sorted(blobs):
+        hasher.update(blob)
+    return hasher.hexdigest()
+
+
+def fetch_previous_state(url: str) -> dict | None:
+    """Fetch the last-updated.json published by the previous run, or None."""
+    if not url:
+        return None
+    try:
+        req = urllib.request.Request(
+            url, headers={"User-Agent": "bbc-rides-filter/1.0 (+github-actions)"}
+        )
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            state = json.loads(resp.read().decode("utf-8"))
+        return state if isinstance(state, dict) else None
+    except (urllib.error.URLError, ValueError, TimeoutError) as exc:
+        print(f"[state] could not fetch previous state ({exc})", file=sys.stderr)
+        return None
+
+
+def set_github_output(name: str, value: str) -> None:
+    """Expose a step output when running under GitHub Actions."""
+    output_path = os.environ.get("GITHUB_OUTPUT")
+    if output_path:
+        with open(output_path, "a", encoding="utf-8") as fh:
+            fh.write(f"{name}={value}\n")
+
+
 def format_eastern_timestamp(value: datetime) -> str:
     eastern = value.astimezone(EASTERN_TZ)
     hour = eastern.hour % 12 or 12
@@ -124,14 +179,23 @@ def format_eastern_timestamp(value: datetime) -> str:
     )
 
 
-def write_last_updated(output_dir: Path, updated_at: datetime) -> None:
-    eastern = updated_at.astimezone(EASTERN_TZ)
+def write_last_updated(
+    output_dir: Path,
+    modified_at: datetime | None,
+    upstream_hash: str,
+) -> None:
+    """Write site state. modified_at is None when we can't know it (i.e. no
+    previous hash existed to compare against)."""
     path = output_dir / LAST_UPDATED_FILENAME
     payload = {
-        "display": format_eastern_timestamp(updated_at),
+        "modified_display": (
+            format_eastern_timestamp(modified_at) if modified_at else None
+        ),
+        "modified_at_utc": (
+            modified_at.isoformat().replace("+00:00", "Z") if modified_at else None
+        ),
         "timezone": "America/New_York",
-        "updated_at_eastern": eastern.isoformat(),
-        "updated_at_utc": updated_at.isoformat().replace("+00:00", "Z"),
+        "upstream_sha256": upstream_hash,
     }
     path.write_text(
         json.dumps(payload, indent=2, sort_keys=True) + "\n",
@@ -210,8 +274,37 @@ def filter_calendar(src: Calendar, cutoff: datetime) -> Calendar:
 def main() -> int:
     raw = fetch_upstream(UPSTREAM_URL)
     src = Calendar.from_ical(raw)
-
     now = datetime.now(timezone.utc)
+
+    digest = content_hash(src)
+    previous = fetch_previous_state(PREVIOUS_STATE_URL) or {}
+    prev_hash = previous.get("upstream_sha256")
+
+    if prev_hash == digest and not FORCE_REBUILD:
+        print("[skip] upstream calendar unchanged since last run; nothing to do",
+              file=sys.stderr)
+        set_github_output("changed", "false")
+        return 0
+    set_github_output("changed", "true")
+
+    # When the calendar was last updated: now if it changed since the last
+    # run; carried forward on a forced rebuild; unknown (None) when there is
+    # no previous hash to compare against.
+    if prev_hash is None:
+        modified_at = None
+    elif prev_hash != digest:
+        modified_at = now
+    else:
+        modified_at = None
+        raw_modified = previous.get("modified_at_utc")
+        if raw_modified:
+            try:
+                modified_at = datetime.fromisoformat(
+                    raw_modified.replace("Z", "+00:00")
+                )
+            except ValueError:
+                pass
+
     cutoff = now - timedelta(days=LOOKBACK_DAYS)
     print(f"[filter] cutoff = {cutoff.isoformat()}", file=sys.stderr)
 
@@ -222,7 +315,7 @@ def main() -> int:
     print(f"[filter] VEVENTs: {before} -> {after}", file=sys.stderr)
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    write_last_updated(OUTPUT_DIR, now)
+    write_last_updated(OUTPUT_DIR, modified_at=modified_at, upstream_hash=digest)
 
     # Full feed (all types) — kept for backwards compatibility.
     out_path = OUTPUT_DIR / OUTPUT_FILENAME

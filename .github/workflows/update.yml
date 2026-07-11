@@ -28,6 +28,8 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.build.outputs.changed }}
     steps:
       - name: Check out repo
         uses: actions/checkout@v4
@@ -42,18 +44,29 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Build filtered ICS
+        id: build
+        env:
+          # The previous run's state on the live site, used to detect whether
+          # the upstream calendar changed since the last run.
+          PREVIOUS_STATE_URL: "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/last-updated.json"
+          # Pushes and manual runs always rebuild so script/index.html
+          # changes deploy even when the upstream calendar is unchanged.
+          FORCE_REBUILD: ${{ github.event_name != 'schedule' }}
         run: python scripts/filter_ics.py
 
       - name: Copy index.html
+        if: steps.build.outputs.changed == 'true'
         run: cp index.html _site/index.html
 
       - name: Upload Pages artifact
+        if: steps.build.outputs.changed == 'true'
         uses: actions/upload-pages-artifact@v3
         with:
           path: _site
 
   deploy:
     needs: build
+    if: needs.build.outputs.changed == 'true'
     runs-on: ubuntu-latest
     environment:
       name: github-pages

@@ -97,32 +97,41 @@
 </head>
 <body>
   <h1>BBC Rides</h1>
-  <p class="subtitle"><a href="https://www.bloomingtonbicycleclub.org/calendar">Bloomington Bicycle Club</a> — filtered calendar feed</p>
+  <p class="subtitle"><a href="https://www.bloomingtonbicycleclub.org/content.aspx?page_id=4001&amp;club_id=144345&amp;action=cira&amp;vm=MonthView&amp;sif=0">Bloomington Bicycle Club</a> — filtered calendar feed</p>
 
   <fieldset>
     <legend>Include ride types</legend>
-    <label><input type="checkbox" value="32" checked><span>
-      <span class="type-name">General rides</span>
-    </span></label>
-    <label><input type="checkbox" value="1"  checked><span>
+    <label><input type="checkbox" value="1"   checked><span>
       <span class="type-name">Metric Monday</span>
       <span class="type-desc">60–70 mile drive-and-ride starting from various Southern Indiana towns. Carpool from Bryan Park may be arranged. Aims for a lunch stop. Runs April–October.</span>
     </span></label>
-    <label><input type="checkbox" value="2"  checked><span>
+    <label><input type="checkbox" value="128" checked><span>
+      <span class="type-name">Saturday Epic</span>
+      <span class="type-desc">Longer Saturday rides, usually with two or three distance options of roughly 30–50 miles. Most start at Switchyard Park; some are drive-and-rides.</span>
+    </span></label>
+    <label><input type="checkbox" value="2"   checked><span>
       <span class="type-name">Nice 'n' Easy</span>
       <span class="type-desc">Sunday rides for less experienced riders and those wanting a relaxed pace. 19–24 miles at a slower pace. Meet at Switchyard Park (spray pad area) for a 1:00 pm departure.</span>
     </span></label>
-    <label><input type="checkbox" value="4"  checked><span>
+    <label><input type="checkbox" value="4"   checked><span>
       <span class="type-name">Early Birds</span>
-      <span class="type-desc">Earlier-start, moderate-paced rides at 12–15 mph. No-drop but not a beginner's ride. Routes posted in advance. 20–30+ miles, increasing as the season progresses.</span>
+      <span class="type-desc">Earlier-start, moderate-paced rides at 12–15 mph. No-drop but not a beginner's ride. Routes posted in advance. 20–30+ miles. Departs at 1:00 pm in colder weather.</span>
     </span></label>
-    <label><input type="checkbox" value="8"  checked><span>
+    <label><input type="checkbox" value="64"  checked><span>
+      <span class="type-name">OWLS</span>
+      <span class="type-desc">"Original Wiser and a Little Slower." Weekday-evening no-drop rides for intermediate riders at 12–15 mph, on a route posted in advance. 25–35 miles at peak season. Departs 5:45 pm from Sherwood Oaks Church.</span>
+    </span></label>
+    <label><input type="checkbox" value="8"   checked><span>
       <span class="type-name">iRide</span>
-      <span class="type-desc">No-drop ride with regroup points for riders wanting to push the pace without being race-oriented. 16–18 mph average. Often follows the OWLS route with extra miles and climbs added in the second half.</span>
+      <span class="type-desc">No-drop ride with regroup points for riders wanting to push the pace without being race-oriented. 16–18 mph average. Usually follows the OWLS route, adding miles and climbs in the second half.</span>
     </span></label>
-    <label><input type="checkbox" value="16" checked><span>
+    <label><input type="checkbox" value="16"  checked><span>
       <span class="type-name">Growlers</span>
       <span class="type-desc">Off-road adventure rides on gravel, singletrack, and doubletrack. Start at 6 PM through fall/winter, ~2 hours. Lights mandatory in fall/winter.</span>
+    </span></label>
+    <label><input type="checkbox" value="32"  checked><span>
+      <span class="type-name">Everything else</span>
+      <span class="type-desc">Beginner/social rides, pop-up rides, Tour de Ramps, club meetings, and non-club events on the calendar.</span>
     </span></label>
   </fieldset>
 
@@ -188,7 +197,7 @@
         return;
       }
 
-      const icsFile = `bbc-rides-${mask}.ics`;
+      const icsFile = `rides-${mask}.ics`;
       const httpsUrl = baseUrl() + icsFile;
       const webcalUrl = httpsUrl.replace(/^https?:\/\//, 'webcal://');
 

@@ -1,4 +1,4 @@
-name: Update filtered ICS
+name: Build ride feeds
 
 on:
   # Every 3 hours starting at 5:20 AM UTC. Cron is best-effort; actual runs may be delayed.
@@ -10,7 +10,7 @@ on:
   push:
     branches: [main]
     paths:
-      - "scripts/filter_ics.py"
+      - "scripts/build_feed.py"
       - "requirements.txt"
       - ".github/workflows/update.yml"
       - "index.html"
@@ -43,16 +43,16 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Build filtered ICS
+      - name: Scrape calendar and build feeds
         id: build
         env:
           # The previous run's state on the live site, used to detect whether
-          # the upstream calendar changed since the last run.
+          # the club calendar changed since the last run.
           PREVIOUS_STATE_URL: "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/last-updated.json"
           # Pushes and manual runs always rebuild so script/index.html
-          # changes deploy even when the upstream calendar is unchanged.
+          # changes deploy even when the calendar is unchanged.
           FORCE_REBUILD: ${{ github.event_name != 'schedule' }}
-        run: python scripts/filter_ics.py
+        run: python scripts/build_feed.py
 
       - name: Copy index.html
         if: steps.build.outputs.changed == 'true'

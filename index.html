@@ -77,7 +77,12 @@
       margin-top: 2rem;
       font-size: 0.8rem;
       color: #777;
-      text-align: center;
+      /* One flex row so the icon and every word share a vertical midline. */
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: center;
+      column-gap: 0.3em;
     }
     .credit a {
       color: inherit;
